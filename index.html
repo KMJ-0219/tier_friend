@@ -481,7 +481,7 @@ function toast(msg, err=false){
   clearTimeout(t._tm); t._tm = setTimeout(()=> t.className='', 2200);
 }
 function tierColor(t){
-  const i = Math.min(5, Math.max(0, Math.floor(t)));
+  const i = 5 - Math.min(5, Math.max(0, Math.floor(t)));
   return getComputedStyle(document.documentElement).getPropertyValue('--t'+i).trim();
 }
 function openOv(id){ $('#'+id).classList.add('on'); }
@@ -505,7 +505,7 @@ async function loadAll(){
   try{
     const [pe, c, po] = await Promise.all([
       sb.from('pe').select('*, pe_c(id, custom_note, c:c_id(*)), pe_po(id, custom_note, po:po_id(*))')
-        .eq('is_deleted', false).order('tier', {ascending:false}),
+        .eq('is_deleted', false).order('tier', {ascending:true}),
       sb.from('c').select('*').eq('is_deleted', false).order('c_name'),
       sb.from('po').select('*').eq('is_deleted', false).order('po_name'),
     ]);
@@ -566,9 +566,9 @@ function fitBoard(){
 }
 function boardEl(){ return $('#board'); }
 function usableH(){ return boardEl().clientHeight - PAD_TOP - PAD_BOTTOM - CARD_H; }
-function tierToY(t){ return PAD_TOP + (5 - t) / 5 * usableH(); }
+function tierToY(t){ return PAD_TOP + t / 5 * usableH(); }
 function yToTier(y){
-  let t = 5 - (y - PAD_TOP) / usableH() * 5;
+  let t = (y - PAD_TOP) / usableH() * 5;
   t = Math.round(t * 10) / 10;
   return Math.min(5, Math.max(0, t));
 }
