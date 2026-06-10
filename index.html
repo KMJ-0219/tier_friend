@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FRIEND TIER — 친구 분석 보드</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{
+  --bg:#13151b;
+  --bg2:#181b23;
+  --panel:#1e2230;
+  --panel2:#252a3a;
+  --line:#2e3447;
+  --text:#e8eaf2;
+  --muted:#8d93a8;
+  --accent:#6366f1;
+  --accent2:#818cf8;
+  --danger:#ef5d5d;
+  --mono:'JetBrains Mono',ui-monospace,'SF Mono',Consolas,monospace;
+  --t5:#e8b341; --t4:#c084fc; --t3:#60a5fa; --t2:#4ade80; --t1:#94a3b8; --t0:#e06c6c;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+  font-size:14px;
+  overflow-x:hidden;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea,select{font-family:inherit;font-size:14px;color:var(--text)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#333a50;border-radius:5px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ===== HEADER ===== */
+header{
+  display:flex;align-items:center;gap:20px;
+  padding:0 22px;height:58px;
+  background:var(--bg2);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:50;
+}
+.logo{font-weight:800;font-size:17px;letter-spacing:.06em}
+.logo b{color:var(--accent2);font-family:var(--mono)}
+nav{display:flex;gap:4px;margin-left:8px}
+.tab-btn{
+  padding:8px 14px;border-radius:8px;color:var(--muted);
+  font-weight:600;font-size:13.5px;transition:.15s;
+}
+.tab-btn:hover{color:var(--text);background:var(--panel)}
+.tab-btn.on{color:var(--text);background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line)}
+.hd-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:#666;transition:.3s}
+.conn-dot.ok{background:#4ade80;box-shadow:0 0 8px #4ade8088}
+.conn-dot.bad{background:var(--danger)}
+.conn-label{font-size:11.5px;color:var(--muted);font-family:var(--mono)}
+
+/* ===== COMMON ===== */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 14px;border-radius:9px;font-weight:700;font-size:13px;
+  background:var(--panel2);border:1px solid var(--line);transition:.15s;
+}
+.btn:hover{border-color:#48506e;background:#2b3146}
+.btn.primary{background:var(--accent);border-color:var(--accent)}
+.btn.primary:hover{background:var(--accent2);border-color:var(--accent2)}
+.btn.danger{color:#ffb4b4;border-color:#5a3340}
+.btn.danger:hover{background:#3a2030;border-color:var(--danger)}
+.btn.sm{padding:5px 10px;font-size:12px;border-radius:7px}
+.tab-page{display:none;padding:20px 22px;max-width:1500px;margin:0 auto}
+.tab-page.on{display:block}
+.page-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.page-head h2{font-size:18px;font-weight:800}
+.page-head .count{font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--panel);padding:3px 9px;border-radius:20px;border:1px solid var(--line)}
+.page-head .spacer{flex:1}
+.empty-note{color:var(--muted);text-align:center;padding:50px 0;font-size:13.5px;line-height:1.8}
+
+/* ===== TIER BOARD ===== */
+.board-wrap{padding:18px 22px 30px;max-width:1500px;margin:0 auto}
+.board-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.board-toolbar .hint{font-size:12px;color:var(--muted)}
+#board-scroll{overflow-x:auto;border-radius:14px;border:1px solid var(--line);background:var(--bg2)}
+#board{
+  position:relative;min-width:860px;height:740px;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0, transparent 117px, #ffffff07 117px, #ffffff07 234px);
+  user-select:none;touch-action:none;
+}
+.tier-line{position:absolute;left:64px;right:0;height:1px;background:var(--line);pointer-events:none}
+.tier-line.half{background:transparent;border-top:1px dashed #2a2e3a88}
+.ruler{
+  position:absolute;left:0;top:0;bottom:0;width:64px;
+  border-right:1px solid var(--line);background:#171a22;
+  pointer-events:none;z-index:2;
+}
+.ruler-label{
+  position:absolute;left:0;width:64px;text-align:center;
+  transform:translateY(-50%);
+  font-family:var(--mono);font-weight:800;font-size:20px;
+}
+.ruler-label small{display:block;font-size:9px;letter-spacing:.18em;font-weight:600;opacity:.55;margin-top:-2px}
+.ruler-tick{position:absolute;right:0;width:10px;height:1px;background:#3a4158}
+.fcard{
+  position:absolute;z-index:5;
+  width:148px;padding:9px 11px 9px 13px;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  cursor:grab;transition:box-shadow .15s, border-color .15s;
+  box-shadow:0 2px 10px #0006;
+}
+.fcard:hover{border-color:#4a5273;box-shadow:0 4px 16px #0008}
+.fcard.dragging{cursor:grabbing;z-index:30;box-shadow:0 10px 28px #000c;transition:none}
+.fcard::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:4px;
+  border-radius:10px 0 0 10px;background:var(--c,#6366f1);
+}
+.fcard .nm{font-weight:800;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fcard .meta{display:flex;align-items:center;gap:6px;margin-top:3px}
+.fcard .tnum{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--muted)}
+.fcard .cnt{font-size:10.5px;color:var(--muted)}
+.drag-ghost-tier{
+  position:absolute;left:64px;right:0;height:1px;background:var(--accent2);
+  z-index:4;pointer-events:none;box-shadow:0 0 10px var(--accent);
+}
+.drag-tip{
+  position:absolute;z-index:31;pointer-events:none;
+  font-family:var(--mono);font-weight:800;font-size:13px;
+  background:var(--accent);padding:3px 9px;border-radius:7px;
+  transform:translate(-50%,-140%);color:#fff;
+}
+
+/* ===== LIST PAGES (c / po / pe) ===== */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.item-card{
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:14px 15px;display:flex;flex-direction:column;gap:7px;
+  transition:border-color .15s;
+}
+.item-card:hover{border-color:#444c6c}
+.item-card .top{display:flex;align-items:flex-start;gap:8px}
+.item-card h3{font-size:14.5px;font-weight:800;flex:1;line-height:1.35}
+.item-card .desc{font-size:13px;color:#c6cad8;line-height:1.55}
+.item-card .note{
+  font-size:12px;color:var(--muted);line-height:1.55;
+  border-left:2px solid var(--line);padding-left:9px;
+}
+.item-card .acts{display:flex;gap:6px;margin-top:4px}
+.icon-btn{
+  width:28px;height:28px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;
+  color:var(--muted);border:1px solid transparent;font-size:13px;
+}
+.icon-btn:hover{background:var(--panel2);color:var(--text);border-color:var(--line)}
+.icon-btn.del:hover{color:var(--danger);border-color:#5a3340}
+.tier-badge{
+  font-family:var(--mono);font-weight:800;font-size:12px;
+  padding:2px 9px;border-radius:7px;background:#0007;
+}
+.pe-row-chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:20px;
+  background:var(--panel2);border:1px solid var(--line);cursor:pointer;transition:.13s;
+}
+.chip:hover{border-color:var(--accent);color:#fff}
+.chip.po-chip{border-style:dashed}
+.chip .dot{width:6px;height:6px;border-radius:50%}
+.chip.c-chip .dot{background:var(--t3)}
+.chip.po-chip .dot{background:var(--t4)}
+
+/* ===== MODALS ===== */
+.overlay{
+  position:fixed;inset:0;background:#0009;backdrop-filter:blur(3px);
+  display:none;align-items:flex-start;justify-content:center;z-index:100;
+  padding:40px 16px;overflow-y:auto;
+}
+.overlay.on{display:flex}
+.modal{
+  background:var(--bg2);border:1px solid var(--line);border-radius:16px;
+  width:100%;max-width:560px;padding:22px 22px 20px;
+  animation:pop .18s ease;
+  box-shadow:0 20px 60px #000a;
+}
+@keyframes pop{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
+.modal h2{font-size:17px;font-weight:800;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.modal h2 .x{margin-left:auto}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;letter-spacing:.03em}
+.field input[type=text],.field input[type=number],.field textarea,.field select{
+  width:100%;background:var(--panel);border:1px solid var(--line);border-radius:9px;
+  padding:9px 12px;outline:none;transition:border-color .15s;
+}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.field textarea{resize:vertical;min-height:64px;line-height:1.5}
+.field-row{display:flex;gap:10px}
+.field-row .field{flex:1}
+.color-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.color-sw{width:26px;height:26px;border-radius:8px;border:2px solid transparent;cursor:pointer}
+.color-sw.on{border-color:#fff;box-shadow:0 0 0 2px var(--accent)}
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.modal-foot .left{margin-right:auto}
+
+/* assign picker */
+.pick-box{background:var(--panel);border:1px solid var(--line);border-radius:10px;max-height:190px;overflow-y:auto;padding:6px}
+.pick-row{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;cursor:pointer;font-size:13px}
+.pick-row:hover{background:var(--panel2)}
+.pick-row input{accent-color:var(--accent);width:15px;height:15px;cursor:pointer}
+.pick-row .sub{color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;text-align:right}
+.inline-new{display:flex;gap:6px;margin-top:7px}
+.inline-new input{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 10px;outline:none;font-size:12.5px}
+.inline-new input:focus{border-color:var(--accent)}
+
+/* detail modal */
+.detail-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.detail-head .swatch{width:14px;height:38px;border-radius:5px}
+.detail-head h2{margin:0;font-size:20px}
+.detail-head .tier-badge{font-size:14px;padding:4px 12px}
+.detail-sec{margin-bottom:14px}
+.detail-sec .sec-label{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--muted);margin-bottom:7px}
+.detail-sec p{font-size:13.5px;line-height:1.65;color:#d4d8e4;white-space:pre-wrap}
+.detail-sec p.dim{color:var(--muted);font-size:12.5px}
+
+/* chip popover */
+.pop-card{max-width:420px}
+.pop-card .kind-tag{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.1em;padding:3px 8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+
+/* toast */
+#toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+  padding:10px 18px;font-size:13px;font-weight:600;opacity:0;transition:.25s;z-index:200;
+  pointer-events:none;box-shadow:0 8px 24px #000a;
+}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{border-color:var(--danger);color:#ffc2c2}
+
+@media(max-width:700px){
+  header{padding:0 12px;gap:8px;overflow-x:auto}
+  .tab-page,.board-wrap{padding:14px 12px 26px}
+  .grid{grid-template-columns:1fr}
+  .conn-label{display:none}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">FRIEND<b>::</b>TIER</div>
+  <nav>
+    <button class="tab-btn on" data-tab="board">티어보드</button>
+    <button class="tab-btn" data-tab="pe">친구 관리</button>
+    <button class="tab-btn" data-tab="c">특성</button>
+    <button class="tab-btn" data-tab="po">포지션</button>
+  </nav>
+  <div class="hd-right">
+    <span class="conn-dot" id="connDot"></span>
+    <span class="conn-label" id="connLabel">connecting…</span>
+  </div>
+</header>
+
+<!-- ===== 티어보드 ===== -->
+<section class="tab-page on" id="page-board">
+  <div class="board-wrap" style="padding:0">
+    <div class="board-toolbar">
+      <button class="btn primary" id="btnAddPe">＋ 친구 추가</button>
+      <span class="hint">카드를 드래그해서 티어 조정 · 소수점(0.1 단위) 가능 · 카드 클릭 시 상세보기</span>
+    </div>
+    <div id="board-scroll">
+      <div id="board"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 친구 관리 ===== -->
+<section class="tab-page" id="page-pe">
+  <div class="page-head">
+    <h2>친구 관리</h2><span class="count" id="peCount">0</span>
+    <div class="spacer"></div>
+    <button class="btn primary" id="btnAddPe2">＋ 친구 추가</button>
+  </div>
+  <div class="grid" id="peList"></div>
+</section>
+
+<!-- ===== 특성 ===== -->
+<section class="tab-page" id="page-c">
+  <div class="page-head">
+    <h2>특성 (Characteristic)</h2><span class="count" id="cCount">0</span>
+    <div class="spacer"></div>
+    <button class="btn primary" id="btnAddC">＋ 특성 추가</button>
+  </div>
+  <div class="grid" id="cList"></div>
+</section>
+
+<!-- ===== 포지션 ===== -->
+<section class="tab-page" id="page-po">
+  <div class="page-head">
+    <h2>포지션 (Position)</h2><span class="count" id="poCount">0</span>
+    <div class="spacer"></div>
+    <button class="btn primary" id="btnAddPo">＋ 포지션 추가</button>
+  </div>
+  <div class="grid" id="poList"></div>
+</section>
+
+<!-- ===== 특성/포지션 편집 모달 ===== -->
+<div class="overlay" id="ovCpo">
+  <div class="modal">
+    <h2 id="cpoTitle">특성 추가 <button class="icon-btn x" data-close="ovCpo">✕</button></h2>
+    <div class="field">
+      <label id="cpoNameLabel">이름</label>
+      <input type="text" id="cpoName" placeholder="예: 욕쟁이">
+    </div>
+    <div class="field">
+      <label>설명</label>
+      <textarea id="cpoContent" placeholder="예: 욕을 잘함"></textarea>
+    </div>
+    <div class="field">
+      <label>비고 / 부가 효과</label>
+      <textarea id="cpoTxt" placeholder="예: 케바케로 좋을 수도, 나쁘게 작용할 수도"></textarea>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close="ovCpo">취소</button>
+      <button class="btn primary" id="cpoSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 친구 편집 모달 ===== -->
+<div class="overlay" id="ovPe">
+  <div class="modal">
+    <h2 id="peTitle">친구 추가 <button class="icon-btn x" data-close="ovPe">✕</button></h2>
+    <div class="field-row">
+      <div class="field" style="flex:2">
+        <label>이름</label>
+        <input type="text" id="peName" placeholder="이름">
+      </div>
+      <div class="field">
+        <label>티어 (0 ~ 5)</label>
+        <input type="number" id="peTier" min="0" max="5" step="0.1" value="2.5">
+      </div>
+    </div>
+    <div class="field">
+      <label>설명</label>
+      <textarea id="peContent" placeholder="어떤 친구인지"></textarea>
+    </div>
+    <div class="field">
+      <label>비고</label>
+      <textarea id="peTxt" placeholder="추가 메모"></textarea>
+    </div>
+    <div class="field">
+      <label>카드 색상</label>
+      <div class="color-row" id="peColors"></div>
+    </div>
+    <div class="field">
+      <label>특성 부여 (복수 선택)</label>
+      <div class="pick-box" id="pickC"></div>
+      <div class="inline-new">
+        <input type="text" id="newCName" placeholder="새 특성 이름">
+        <input type="text" id="newCContent" placeholder="설명">
+        <button class="btn sm" id="newCAdd">즉시 생성</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>포지션 부여 (복수 선택)</label>
+      <div class="pick-box" id="pickPo"></div>
+      <div class="inline-new">
+        <input type="text" id="newPoName" placeholder="새 포지션 이름">
+        <input type="text" id="newPoContent" placeholder="설명">
+        <button class="btn sm" id="newPoAdd">즉시 생성</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close="ovPe">취소</button>
+      <button class="btn primary" id="peSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 친구 상세 모달 ===== -->
+<div class="overlay" id="ovDetail">
+  <div class="modal">
+    <div class="detail-head">
+      <div class="swatch" id="dSwatch"></div>
+      <h2 id="dName"></h2>
+      <span class="tier-badge" id="dTier"></span>
+      <button class="icon-btn x" data-close="ovDetail" style="margin-left:auto">✕</button>
+    </div>
+    <div class="detail-sec">
+      <div class="sec-label">설명</div>
+      <p id="dContent"></p>
+    </div>
+    <div class="detail-sec" id="dTxtSec">
+      <div class="sec-label">비고</div>
+      <p class="dim" id="dTxt"></p>
+    </div>
+    <div class="detail-sec">
+      <div class="sec-label">특성</div>
+      <div class="pe-row-chips" id="dChipsC"></div>
+    </div>
+    <div class="detail-sec">
+      <div class="sec-label">포지션</div>
+      <div class="pe-row-chips" id="dChipsPo"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger left" id="dDelete">삭제</button>
+      <button class="btn" data-close="ovDetail">닫기</button>
+      <button class="btn primary" id="dEdit">수정</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 특성/포지션 칩 팝업 ===== -->
+<div class="overlay" id="ovChip">
+  <div class="modal pop-card">
+    <h2><span class="kind-tag" id="chipKind">TRAIT</span> <span id="chipName"></span>
+      <button class="icon-btn x" data-close="ovChip">✕</button></h2>
+    <div class="detail-sec">
+      <div class="sec-label">설명</div>
+      <p id="chipContent"></p>
+    </div>
+    <div class="detail-sec" id="chipTxtSec">
+      <div class="sec-label">비고</div>
+      <p class="dim" id="chipTxt"></p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close="ovChip">닫기</button>
+      <button class="btn primary" id="chipEdit">수정</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+/* =====================================================
+   SUPABASE
+===================================================== */
+const SUPABASE_URL = 'https://hjxqhkygprvcbpipiarf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_VP6pSQIkGBTHUJVq_Ylkgw_oOJabRwJ';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* =====================================================
+   STATE
+===================================================== */
+const S = {
+  friends: [],   // pe + joined pe_c / pe_po
+  traits: [],    // c
+  positions: [], // po
+  editingPe: null,
+  editingCpo: null,   // {kind:'c'|'po', row|null}
+  pickedC: new Set(),
+  pickedPo: new Set(),
+  detailPeId: null,
+  chipCtx: null,      // {kind, row}
+};
+const COLORS = ['#6366f1','#e8b341','#4ade80','#60a5fa','#c084fc','#f472b6','#fb923c','#2dd4bf','#94a3b8','#e06c6c'];
+let pickedColor = COLORS[0];
+
+/* =====================================================
+   UTILS
+===================================================== */
+const $ = s => document.querySelector(s);
+const esc = s => (s ?? '').toString().replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function toast(msg, err=false){
+  const t = $('#toast');
+  t.textContent = msg; t.className = err ? 'on err' : 'on';
+  clearTimeout(t._tm); t._tm = setTimeout(()=> t.className='', 2200);
+}
+function tierColor(t){
+  const i = Math.min(5, Math.max(0, Math.floor(t)));
+  return getComputedStyle(document.documentElement).getPropertyValue('--t'+i).trim();
+}
+function openOv(id){ $('#'+id).classList.add('on'); }
+function closeOv(id){ $('#'+id).classList.remove('on'); }
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeOv(b.dataset.close)));
+document.querySelectorAll('.overlay').forEach(ov => ov.addEventListener('mousedown', e => { if(e.target === ov) ov.classList.remove('on'); }));
+
+/* =====================================================
+   TABS
+===================================================== */
+document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab-btn').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('on', p.id === 'page-' + b.dataset.tab));
+  if(b.dataset.tab === 'board') renderBoard();
+}));
+
+/* =====================================================
+   DATA LOAD
+===================================================== */
+async function loadAll(){
+  try{
+    const [pe, c, po] = await Promise.all([
+      sb.from('pe').select('*, pe_c(id, custom_note, c:c_id(*)), pe_po(id, custom_note, po:po_id(*))')
+        .eq('is_deleted', false).order('tier', {ascending:false}),
+      sb.from('c').select('*').eq('is_deleted', false).order('c_name'),
+      sb.from('po').select('*').eq('is_deleted', false).order('po_name'),
+    ]);
+    if(pe.error) throw pe.error;
+    if(c.error) throw c.error;
+    if(po.error) throw po.error;
+    S.friends = (pe.data || []).map(p => ({
+      ...p,
+      cs:  (p.pe_c  || []).map(l => l.c ).filter(x => x && !x.is_deleted),
+      pos: (p.pe_po || []).map(l => l.po).filter(x => x && !x.is_deleted),
+    }));
+    S.traits = c.data || [];
+    S.positions = po.data || [];
+    setConn(true);
+    renderAll();
+  }catch(e){
+    console.error(e);
+    setConn(false);
+    toast('데이터 로드 실패: ' + (e.message || e), true);
+  }
+}
+function setConn(ok){
+  $('#connDot').className = 'conn-dot ' + (ok ? 'ok' : 'bad');
+  $('#connLabel').textContent = ok ? 'supabase 연결됨' : '연결 오류';
+}
+
+/* realtime: 다른 탭/기기에서 바뀌면 자동 새로고침 */
+let rtTm = null;
+sb.channel('friend_tier_rt')
+  .on('postgres_changes', {event:'*', schema:'public'}, () => {
+    clearTimeout(rtTm); rtTm = setTimeout(loadAll, 400);
+  })
+  .subscribe();
+
+/* =====================================================
+   TIER BOARD
+===================================================== */
+const PAD_TOP = 26, PAD_BOTTOM = 26, RULER_W = 64, CARD_W = 148, CARD_H = 56;
+function boardEl(){ return $('#board'); }
+function usableH(){ return boardEl().clientHeight - PAD_TOP - PAD_BOTTOM - CARD_H; }
+function tierToY(t){ return PAD_TOP + (5 - t) / 5 * usableH(); }
+function yToTier(y){
+  let t = 5 - (y - PAD_TOP) / usableH() * 5;
+  t = Math.round(t * 10) / 10;
+  return Math.min(5, Math.max(0, t));
+}
+
+function renderBoard(){
+  const board = boardEl();
+  board.innerHTML = '';
+
+  // 눈금자 + 라인
+  const ruler = document.createElement('div');
+  ruler.className = 'ruler';
+  for(let t = 0; t <= 5; t += 0.5){
+    const y = tierToY(t) + CARD_H / 2;
+    if(Number.isInteger(t)){
+      const lb = document.createElement('div');
+      lb.className = 'ruler-label';
+      lb.style.top = y + 'px';
+      lb.style.color = tierColor(t);
+      lb.innerHTML = `${t}<small>TIER</small>`;
+      ruler.appendChild(lb);
+      const line = document.createElement('div');
+      line.className = 'tier-line';
+      line.style.top = y + 'px';
+      board.appendChild(line);
+    }else{
+      const tk = document.createElement('div');
+      tk.className = 'ruler-tick';
+      tk.style.top = y + 'px';
+      ruler.appendChild(tk);
+      const line = document.createElement('div');
+      line.className = 'tier-line half';
+      line.style.top = y + 'px';
+      board.appendChild(line);
+    }
+  }
+  board.appendChild(ruler);
+
+  if(!S.friends.length){
+    const em = document.createElement('div');
+    em.className = 'empty-note';
+    em.style.cssText = 'position:absolute;left:0;right:0;top:45%';
+    em.innerHTML = '아직 등록된 친구가 없습니다.<br>「＋ 친구 추가」로 시작하세요.';
+    board.appendChild(em);
+  }
+
+  const maxX = board.clientWidth - CARD_W - 10;
+  for(const p of S.friends){
+    const card = document.createElement('div');
+    card.className = 'fcard';
+    card.style.setProperty('--c', p.color || '#6366f1');
+    const x = Math.min(Math.max(RULER_W + 14, p.board_x || RULER_W + 20), Math.max(RULER_W + 14, maxX));
+    card.style.left = x + 'px';
+    card.style.top = tierToY(p.tier) + 'px';
+    card.innerHTML = `
+      <div class="nm">${esc(p.pe_name)}</div>
+      <div class="meta">
+        <span class="tnum" style="color:${tierColor(p.tier)}">T${Number(p.tier).toFixed(1)}</span>
+        <span class="cnt">특성 ${p.cs.length} · 포지션 ${p.pos.length}</span>
+      </div>`;
+    attachDrag(card, p);
+    board.appendChild(card);
+  }
+}
+
+function attachDrag(card, p){
+  let startX, startY, ox, oy, moved = false, ghost = null, tip = null;
+  card.addEventListener('pointerdown', e => {
+    if(e.button !== 0) return;
+    e.preventDefault();
+    card.setPointerCapture(e.pointerId);
+    startX = e.clientX; startY = e.clientY;
+    ox = parseFloat(card.style.left); oy = parseFloat(card.style.top);
+    moved = false;
+
+    const onMove = ev => {
+      const dx = ev.clientX - startX, dy = ev.clientY - startY;
+      if(!moved && Math.hypot(dx, dy) < 5) return;
+      if(!moved){
+        moved = true;
+        card.classList.add('dragging');
+        ghost = document.createElement('div'); ghost.className = 'drag-ghost-tier';
+        tip = document.createElement('div'); tip.className = 'drag-tip';
+        boardEl().appendChild(ghost); boardEl().appendChild(tip);
+      }
+      const board = boardEl();
+      const nx = Math.min(Math.max(RULER_W + 14, ox + dx), board.clientWidth - CARD_W - 10);
+      const ny = Math.min(Math.max(PAD_TOP, oy + dy), PAD_TOP + usableH());
+      card.style.left = nx + 'px';
+      card.style.top = ny + 'px';
+      const t = yToTier(ny);
+      ghost.style.top = (tierToY(t) + CARD_H / 2) + 'px';
+      tip.style.left = (nx + CARD_W / 2) + 'px';
+      tip.style.top = ny + 'px';
+      tip.textContent = 'T ' + t.toFixed(1);
+    };
+    const onUp = async ev => {
+      card.removeEventListener('pointermove', onMove);
+      card.removeEventListener('pointerup', onUp);
+      card.removeEventListener('pointercancel', onUp);
+      ghost?.remove(); tip?.remove();
+      card.classList.remove('dragging');
+      if(!moved){ openDetail(p.id); return; }
+
+      let nx = parseFloat(card.style.left);
+      let ny = parseFloat(card.style.top);
+      const t = yToTier(ny);
+      ny = tierToY(t); // 스냅
+
+      // 겹침 방지: 같은 높이 부근의 카드와 충돌하면 오른쪽으로 밀기
+      const others = S.friends.filter(o => o.id !== p.id);
+      const maxX = boardEl().clientWidth - CARD_W - 10;
+      let guard = 0;
+      while(guard++ < 40){
+        const hit = others.find(o => {
+          const oyy = tierToY(o.tier), oxx = Math.min(Math.max(RULER_W + 14, o.board_x || 0), maxX);
+          return Math.abs(oyy - ny) < CARD_H + 4 && Math.abs(oxx - nx) < CARD_W + 6;
+        });
+        if(!hit) break;
+        nx += CARD_W + 10;
+        if(nx > maxX){ nx = RULER_W + 14; ny += CARD_H + 8; }
+      }
+      card.style.left = nx + 'px';
+      card.style.top = ny + 'px';
+
+      p.tier = t; p.board_x = nx; p.board_y = ny;
+      card.querySelector('.tnum').textContent = 'T' + t.toFixed(1);
+      card.querySelector('.tnum').style.color = tierColor(t);
+
+      const { error } = await sb.from('pe')
+        .update({ tier: t, board_x: nx, board_y: ny })
+        .eq('id', p.id);
+      if(error){ toast('저장 실패: ' + error.message, true); }
+      else toast(`${p.pe_name} → T${t.toFixed(1)}`);
+    };
+    card.addEventListener('pointermove', onMove);
+    card.addEventListener('pointerup', onUp);
+    card.addEventListener('pointercancel', onUp);
+  });
+}
+window.addEventListener('resize', () => { if($('#page-board').classList.contains('on')) renderBoard(); });
+
+/* =====================================================
+   특성 / 포지션 페이지
+===================================================== */
+function renderCpoLists(){
+  const mk = (rows, kind) => rows.map(r => {
+    const name = kind === 'c' ? r.c_name : r.po_name;
+    const content = kind === 'c' ? r.c_content : r.po_content;
+    const txt = kind === 'c' ? r.c_txt : r.po_txt;
+    return `<div class="item-card">
+      <div class="top"><h3>${esc(name)}</h3>
+        <button class="icon-btn" onclick="editCpo('${kind}','${r.id}')" title="수정">✎</button>
+        <button class="icon-btn del" onclick="delCpo('${kind}','${r.id}')" title="삭제">🗑</button>
+      </div>
+      <div class="desc">${esc(content)}</div>
+      ${txt ? `<div class="note">${esc(txt)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  $('#cList').innerHTML = S.traits.length ? mk(S.traits, 'c')
+    : '<div class="empty-note" style="grid-column:1/-1">등록된 특성이 없습니다.</div>';
+  $('#poList').innerHTML = S.positions.length ? mk(S.positions, 'po')
+    : '<div class="empty-note" style="grid-column:1/-1">등록된 포지션이 없습니다.</div>';
+  $('#cCount').textContent = S.traits.length;
+  $('#poCount').textContent = S.positions.length;
+}
+
+function openCpoModal(kind, row = null){
+  S.editingCpo = { kind, row };
+  const isC = kind === 'c';
+  $('#cpoTitle').childNodes[0].textContent = (row ? '수정: ' : '추가: ') + (isC ? '특성 ' : '포지션 ');
+  $('#cpoName').value = row ? (isC ? row.c_name : row.po_name) : '';
+  $('#cpoContent').value = row ? (isC ? row.c_content : row.po_content) : '';
+  $('#cpoTxt').value = row ? ((isC ? row.c_txt : row.po_txt) || '') : '';
+  $('#cpoName').placeholder = isC ? '예: 욕쟁이' : '예: 딜러형';
+  $('#cpoContent').placeholder = isC ? '예: 욕을 잘함' : '예: 남 욕하면서 본인 진가 발현';
+  openOv('ovCpo');
+  $('#cpoName').focus();
+}
+window.editCpo = (kind, id) => {
+  const row = (kind === 'c' ? S.traits : S.positions).find(r => r.id === id);
+  if(row) openCpoModal(kind, row);
+};
+window.delCpo = async (kind, id) => {
+  if(!confirm('정말 삭제할까요? (부여된 친구에게서도 사라집니다)')) return;
+  const { error } = await sb.from(kind).update({ is_deleted: true }).eq('id', id);
+  if(error) return toast('삭제 실패: ' + error.message, true);
+  toast('삭제됨');
+  loadAll();
+};
+$('#cpoSave').addEventListener('click', async () => {
+  const { kind, row } = S.editingCpo;
+  const name = $('#cpoName').value.trim();
+  const content = $('#cpoContent').value.trim();
+  const txt = $('#cpoTxt').value.trim() || null;
+  if(!name) return toast('이름을 입력하세요', true);
+  if(!content) return toast('설명을 입력하세요', true);
+  const payload = kind === 'c'
+    ? { c_name: name, c_content: content, c_txt: txt }
+    : { po_name: name, po_content: content, po_txt: txt };
+  const q = row
+    ? sb.from(kind).update(payload).eq('id', row.id)
+    : sb.from(kind).insert(payload);
+  const { error } = await q;
+  if(error) return toast('저장 실패: ' + error.message, true);
+  closeOv('ovCpo');
+  toast('저장됨');
+  loadAll();
+});
+$('#btnAddC').addEventListener('click', () => openCpoModal('c'));
+$('#btnAddPo').addEventListener('click', () => openCpoModal('po'));
+
+/* =====================================================
+   친구 관리 페이지
+===================================================== */
+function renderPeList(){
+  $('#peCount').textContent = S.friends.length;
+  $('#peList').innerHTML = S.friends.length ? S.friends.map(p => `
+    <div class="item-card">
+      <div class="top">
+        <h3 style="display:flex;align-items:center;gap:8px">
+          <span style="width:10px;height:10px;border-radius:3px;background:${esc(p.color||'#6366f1')}"></span>
+          ${esc(p.pe_name)}
+          <span class="tier-badge" style="color:${tierColor(p.tier)}">T${Number(p.tier).toFixed(1)}</span>
+        </h3>
+        <button class="icon-btn" onclick="openDetail('${p.id}')" title="상세">👁</button>
+        <button class="icon-btn" onclick="editPe('${p.id}')" title="수정">✎</button>
+        <button class="icon-btn del" onclick="delPe('${p.id}')" title="삭제">🗑</button>
+      </div>
+      ${p.pe_content ? `<div class="desc">${esc(p.pe_content)}</div>` : ''}
+      <div class="pe-row-chips">
+        ${p.cs.map(c => `<span class="chip c-chip" onclick="openChip('c','${c.id}')"><span class="dot"></span>${esc(c.c_name)}</span>`).join('')}
+        ${p.pos.map(o => `<span class="chip po-chip" onclick="openChip('po','${o.id}')"><span class="dot"></span>${esc(o.po_name)}</span>`).join('')}
+      </div>
+    </div>`).join('')
+    : '<div class="empty-note" style="grid-column:1/-1">등록된 친구가 없습니다.</div>';
+}
+
+function renderColorRow(){
+  $('#peColors').innerHTML = COLORS.map(c =>
+    `<div class="color-sw ${c === pickedColor ? 'on' : ''}" style="background:${c}" data-col="${c}"></div>`).join('');
+  document.querySelectorAll('.color-sw').forEach(sw => sw.addEventListener('click', () => {
+    pickedColor = sw.dataset.col; renderColorRow();
+  }));
+}
+function renderPickers(){
+  $('#pickC').innerHTML = S.traits.length ? S.traits.map(c => `
+    <label class="pick-row">
+      <input type="checkbox" data-id="${c.id}" data-kind="c" ${S.pickedC.has(c.id) ? 'checked' : ''}>
+      <b>${esc(c.c_name)}</b><span class="sub">${esc(c.c_content)}</span>
+    </label>`).join('')
+    : '<div style="padding:10px;color:var(--muted);font-size:12.5px">아직 특성이 없습니다. 아래에서 바로 만들 수 있어요.</div>';
+  $('#pickPo').innerHTML = S.positions.length ? S.positions.map(o => `
+    <label class="pick-row">
+      <input type="checkbox" data-id="${o.id}" data-kind="po" ${S.pickedPo.has(o.id) ? 'checked' : ''}>
+      <b>${esc(o.po_name)}</b><span class="sub">${esc(o.po_content)}</span>
+    </label>`).join('')
+    : '<div style="padding:10px;color:var(--muted);font-size:12.5px">아직 포지션이 없습니다. 아래에서 바로 만들 수 있어요.</div>';
+  document.querySelectorAll('.pick-row input').forEach(ch => ch.addEventListener('change', () => {
+    const set = ch.dataset.kind === 'c' ? S.pickedC : S.pickedPo;
+    ch.checked ? set.add(ch.dataset.id) : set.delete(ch.dataset.id);
+  }));
+}
+
+function openPeModal(p = null){
+  S.editingPe = p;
+  S.pickedC = new Set(p ? p.cs.map(c => c.id) : []);
+  S.pickedPo = new Set(p ? p.pos.map(o => o.id) : []);
+  pickedColor = p?.color || COLORS[0];
+  $('#peTitle').childNodes[0].textContent = p ? `수정: ${p.pe_name} ` : '친구 추가 ';
+  $('#peName').value = p?.pe_name || '';
+  $('#peTier').value = p ? Number(p.tier).toFixed(1) : '2.5';
+  $('#peContent').value = p?.pe_content || '';
+  $('#peTxt').value = p?.pe_txt || '';
+  renderColorRow();
+  renderPickers();
+  openOv('ovPe');
+  $('#peName').focus();
+}
+window.editPe = id => { const p = S.friends.find(x => x.id === id); if(p){ closeOv('ovDetail'); openPeModal(p); } };
+window.delPe = async id => {
+  const p = S.friends.find(x => x.id === id);
+  if(!p || !confirm(`'${p.pe_name}' 삭제할까요?`)) return;
+  const { error } = await sb.from('pe').update({ is_deleted: true }).eq('id', id);
+  if(error) return toast('삭제 실패: ' + error.message, true);
+  closeOv('ovDetail');
+  toast('삭제됨');
+  loadAll();
+};
+$('#btnAddPe').addEventListener('click', () => openPeModal());
+$('#btnAddPe2').addEventListener('click', () => openPeModal());
+
+/* 즉시 생성(인라인) */
+async function inlineCreate(kind){
+  const nameEl = $(kind === 'c' ? '#newCName' : '#newPoName');
+  const contEl = $(kind === 'c' ? '#newCContent' : '#newPoContent');
+  const name = nameEl.value.trim(), cont = contEl.value.trim();
+  if(!name) return toast('이름을 입력하세요', true);
+  const payload = kind === 'c'
+    ? { c_name: name, c_content: cont || name }
+    : { po_name: name, po_content: cont || name };
+  const { data, error } = await sb.from(kind).insert(payload).select().single();
+  if(error) return toast('생성 실패: ' + error.message, true);
+  if(kind === 'c'){ S.traits.push(data); S.traits.sort((a,b)=>a.c_name.localeCompare(b.c_name)); S.pickedC.add(data.id); }
+  else { S.positions.push(data); S.positions.sort((a,b)=>a.po_name.localeCompare(b.po_name)); S.pickedPo.add(data.id); }
+  nameEl.value = ''; contEl.value = '';
+  renderPickers();
+  toast('생성 + 자동 선택됨');
+}
+$('#newCAdd').addEventListener('click', () => inlineCreate('c'));
+$('#newPoAdd').addEventListener('click', () => inlineCreate('po'));
+
+/* 친구 저장 */
+$('#peSave').addEventListener('click', async () => {
+  const name = $('#peName').value.trim();
+  if(!name) return toast('이름을 입력하세요', true);
+  let tier = parseFloat($('#peTier').value);
+  if(isNaN(tier)) tier = 0;
+  tier = Math.round(Math.min(5, Math.max(0, tier)) * 10) / 10;
+  const payload = {
+    pe_name: name,
+    pe_content: $('#peContent').value.trim() || null,
+    pe_txt: $('#peTxt').value.trim() || null,
+    tier, color: pickedColor,
+  };
+  let peId;
+  if(S.editingPe){
+    const { error } = await sb.from('pe').update(payload).eq('id', S.editingPe.id);
+    if(error) return toast('저장 실패: ' + error.message, true);
+    peId = S.editingPe.id;
+  }else{
+    payload.board_x = 90 + Math.random() * 200;
+    const { data, error } = await sb.from('pe').insert(payload).select().single();
+    if(error) return toast('저장 실패: ' + error.message, true);
+    peId = data.id;
+  }
+  // 링크 동기화: 전체 삭제 후 재삽입
+  await sb.from('pe_c').delete().eq('pe_id', peId);
+  await sb.from('pe_po').delete().eq('pe_id', peId);
+  if(S.pickedC.size){
+    const { error } = await sb.from('pe_c').insert([...S.pickedC].map(cid => ({ pe_id: peId, c_id: cid })));
+    if(error) toast('특성 연결 실패: ' + error.message, true);
+  }
+  if(S.pickedPo.size){
+    const { error } = await sb.from('pe_po').insert([...S.pickedPo].map(oid => ({ pe_id: peId, po_id: oid })));
+    if(error) toast('포지션 연결 실패: ' + error.message, true);
+  }
+  closeOv('ovPe');
+  toast('저장됨');
+  loadAll();
+});
+
+/* =====================================================
+   친구 상세 모달
+===================================================== */
+window.openDetail = id => {
+  const p = S.friends.find(x => x.id === id);
+  if(!p) return;
+  S.detailPeId = id;
+  $('#dSwatch').style.background = p.color || '#6366f1';
+  $('#dName').textContent = p.pe_name;
+  const tb = $('#dTier');
+  tb.textContent = 'TIER ' + Number(p.tier).toFixed(1);
+  tb.style.color = tierColor(p.tier);
+  $('#dContent').textContent = p.pe_content || '설명 없음';
+  $('#dTxtSec').style.display = p.pe_txt ? '' : 'none';
+  $('#dTxt').textContent = p.pe_txt || '';
+  $('#dChipsC').innerHTML = p.cs.length
+    ? p.cs.map(c => `<span class="chip c-chip" onclick="openChip('c','${c.id}')"><span class="dot"></span>${esc(c.c_name)}</span>`).join('')
+    : '<span style="color:var(--muted);font-size:12.5px">부여된 특성 없음</span>';
+  $('#dChipsPo').innerHTML = p.pos.length
+    ? p.pos.map(o => `<span class="chip po-chip" onclick="openChip('po','${o.id}')"><span class="dot"></span>${esc(o.po_name)}</span>`).join('')
+    : '<span style="color:var(--muted);font-size:12.5px">부여된 포지션 없음</span>';
+  openOv('ovDetail');
+};
+$('#dEdit').addEventListener('click', () => editPe(S.detailPeId));
+$('#dDelete').addEventListener('click', () => delPe(S.detailPeId));
+
+/* =====================================================
+   칩(특성/포지션) 팝업
+===================================================== */
+window.openChip = (kind, id) => {
+  const row = (kind === 'c' ? S.traits : S.positions).find(r => r.id === id);
+  if(!row) return;
+  S.chipCtx = { kind, row };
+  $('#chipKind').textContent = kind === 'c' ? 'TRAIT' : 'POSITION';
+  $('#chipName').textContent = kind === 'c' ? row.c_name : row.po_name;
+  $('#chipContent').textContent = kind === 'c' ? row.c_content : row.po_content;
+  const txt = kind === 'c' ? row.c_txt : row.po_txt;
+  $('#chipTxtSec').style.display = txt ? '' : 'none';
+  $('#chipTxt').textContent = txt || '';
+  openOv('ovChip');
+};
+$('#chipEdit').addEventListener('click', () => {
+  closeOv('ovChip');
+  openCpoModal(S.chipCtx.kind, S.chipCtx.row);
+});
+
+/* =====================================================
+   RENDER ALL + INIT
+===================================================== */
+function renderAll(){
+  renderBoard();
+  renderPeList();
+  renderCpoLists();
+}
+loadAll();
+</script>
+</body>
+</html>
