@@ -106,7 +106,7 @@ nav{display:flex;gap:4px;margin-left:8px}
 .fcard{
   touch-action:none;-webkit-user-select:none;
   position:absolute;z-index:5;
-  width:148px;padding:9px 11px 9px 13px;
+  width:148px;padding:.67em .81em .67em .96em;font-size:13.5px;
   background:var(--panel);border:1px solid var(--line);border-radius:10px;
   cursor:grab;transition:box-shadow .15s, border-color .15s;
   box-shadow:0 2px 10px #0006;
@@ -117,10 +117,18 @@ nav{display:flex;gap:4px;margin-left:8px}
   content:'';position:absolute;left:0;top:0;bottom:0;width:4px;
   border-radius:10px 0 0 10px;background:var(--c,#6366f1);
 }
-.fcard .nm{font-weight:800;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fcard .meta{display:flex;align-items:center;gap:6px;margin-top:3px}
-.fcard .tnum{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--muted)}
-.fcard .cnt{font-size:10.5px;color:var(--muted)}
+.fcard .nm{font-weight:800;font-size:1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fcard .meta{display:flex;align-items:center;gap:.44em;margin-top:.22em}
+.fcard .tnum{font-family:var(--mono);font-size:.82em;font-weight:700;color:var(--muted)}
+.fcard .cnt{font-size:.78em;color:var(--muted)}
+.search-input{
+  background:var(--panel);border:1px solid var(--line);border-radius:9px;
+  padding:8px 12px;outline:none;font-size:13px;min-width:170px;transition:border-color .15s;
+}
+.search-input:focus{border-color:var(--accent)}
+.pick-search{width:100%;margin-bottom:6px}
+.size-ctl{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-left:auto}
+.size-ctl input[type=range]{width:130px;accent-color:var(--accent)}
 .drag-ghost-tier{
   position:absolute;left:64px;right:0;height:1px;background:var(--accent2);
   z-index:4;pointer-events:none;box-shadow:0 0 10px var(--accent);
@@ -278,6 +286,10 @@ nav{display:flex;gap:4px;margin-left:8px}
     <div class="board-toolbar">
       <button class="btn primary" id="btnAddPe">＋ 친구 추가</button>
       <span class="hint">카드를 드래그해서 티어 조정 · 소수점(0.1 단위) 가능 · 카드 클릭 시 상세보기</span>
+      <label class="size-ctl">카드 크기
+        <input type="range" id="cardScale" min="0.7" max="1.6" step="0.05" value="1">
+        <span id="cardScaleVal" style="font-family:var(--mono);width:34px">100%</span>
+      </label>
     </div>
     <div id="board-scroll">
       <div id="board-sizer"><div id="board"></div></div>
@@ -290,6 +302,7 @@ nav{display:flex;gap:4px;margin-left:8px}
   <div class="page-head">
     <h2>친구 관리</h2><span class="count" id="peCount">0</span>
     <div class="spacer"></div>
+    <input type="text" class="search-input" id="peSearch" placeholder="이름·특성·포지션 검색">
     <button class="btn primary" id="btnAddPe2">＋ 친구 추가</button>
   </div>
   <div class="grid" id="peList"></div>
@@ -300,6 +313,7 @@ nav{display:flex;gap:4px;margin-left:8px}
   <div class="page-head">
     <h2>특성 (Characteristic)</h2><span class="count" id="cCount">0</span>
     <div class="spacer"></div>
+    <input type="text" class="search-input" id="cSearch" placeholder="특성 검색">
     <button class="btn primary" id="btnAddC">＋ 특성 추가</button>
   </div>
   <div class="grid" id="cList"></div>
@@ -310,6 +324,7 @@ nav{display:flex;gap:4px;margin-left:8px}
   <div class="page-head">
     <h2>포지션 (Position)</h2><span class="count" id="poCount">0</span>
     <div class="spacer"></div>
+    <input type="text" class="search-input" id="poSearch" placeholder="포지션 검색">
     <button class="btn primary" id="btnAddPo">＋ 포지션 추가</button>
   </div>
   <div class="grid" id="poList"></div>
@@ -366,6 +381,7 @@ nav{display:flex;gap:4px;margin-left:8px}
     </div>
     <div class="field">
       <label>특성 부여 (복수 선택)</label>
+      <input type="text" class="search-input pick-search" id="pickCSearch" placeholder="특성 검색">
       <div class="pick-box" id="pickC"></div>
       <div class="inline-new">
         <input type="text" id="newCName" placeholder="새 특성 이름">
@@ -375,6 +391,7 @@ nav{display:flex;gap:4px;margin-left:8px}
     </div>
     <div class="field">
       <label>포지션 부여 (복수 선택)</label>
+      <input type="text" class="search-input pick-search" id="pickPoSearch" placeholder="포지션 검색">
       <div class="pick-box" id="pickPo"></div>
       <div class="inline-new">
         <input type="text" id="newPoName" placeholder="새 포지션 이름">
@@ -543,7 +560,17 @@ sb.channel('friend_tier_rt')
 /* =====================================================
    TIER BOARD
 ===================================================== */
-const PAD_TOP = 26, PAD_BOTTOM = 26, RULER_W = 64, CARD_W = 148, CARD_H = 56;
+const PAD_TOP = 26, PAD_BOTTOM = 26, RULER_W = 64;
+const CARD_BASE_W = 148, CARD_BASE_H = 56, CARD_BASE_FONT = 13.5;
+let CARD_SCALE = 1, CARD_W = CARD_BASE_W, CARD_H = CARD_BASE_H;
+const scaleEl = document.getElementById('cardScale');
+scaleEl.addEventListener('input', () => {
+  CARD_SCALE = parseFloat(scaleEl.value);
+  CARD_W = Math.round(CARD_BASE_W * CARD_SCALE);
+  CARD_H = Math.round(CARD_BASE_H * CARD_SCALE);
+  document.getElementById('cardScaleVal').textContent = Math.round(CARD_SCALE * 100) + '%';
+  renderBoard();
+});
 const BOARD_W = 1200, BOARD_H = 740, MIN_SCALE = 0.5;
 let SCALE = 1;
 function fitBoard(){
@@ -620,6 +647,8 @@ function renderBoard(){
     const card = document.createElement('div');
     card.className = 'fcard';
     card.style.setProperty('--c', p.color || '#6366f1');
+    card.style.width = CARD_W + 'px';
+    card.style.fontSize = (CARD_BASE_FONT * CARD_SCALE) + 'px';
     const x = Math.min(Math.max(RULER_W + 14, p.board_x || RULER_W + 20), Math.max(RULER_W + 14, maxX));
     card.style.left = x + 'px';
     card.style.top = tierToY(p.tier) + 'px';
@@ -715,6 +744,16 @@ window.addEventListener('resize', () => { if($('#page-board').classList.contains
    특성 / 포지션 페이지
 ===================================================== */
 function renderCpoLists(){
+  const qc = $('#cSearch').value.trim().toLowerCase();
+  const qp = $('#poSearch').value.trim().toLowerCase();
+  const match = (r, kind, q) => {
+    if(!q) return true;
+    const name = kind === 'c' ? r.c_name : r.po_name;
+    const content = (kind === 'c' ? r.c_content : r.po_content) || '';
+    return name.toLowerCase().includes(q) || content.toLowerCase().includes(q);
+  };
+  const trows = S.traits.filter(r => match(r, 'c', qc));
+  const prows = S.positions.filter(r => match(r, 'po', qp));
   const mk = (rows, kind) => rows.map(r => {
     const name = kind === 'c' ? r.c_name : r.po_name;
     const content = kind === 'c' ? r.c_content : r.po_content;
@@ -729,12 +768,12 @@ function renderCpoLists(){
     </div>`;
   }).join('');
 
-  $('#cList').innerHTML = S.traits.length ? mk(S.traits, 'c')
-    : '<div class="empty-note" style="grid-column:1/-1">등록된 특성이 없습니다.</div>';
-  $('#poList').innerHTML = S.positions.length ? mk(S.positions, 'po')
-    : '<div class="empty-note" style="grid-column:1/-1">등록된 포지션이 없습니다.</div>';
-  $('#cCount').textContent = S.traits.length;
-  $('#poCount').textContent = S.positions.length;
+  $('#cList').innerHTML = trows.length ? mk(trows, 'c')
+    : `<div class="empty-note" style="grid-column:1/-1">${qc ? '검색 결과가 없습니다.' : '등록된 특성이 없습니다.'}</div>`;
+  $('#poList').innerHTML = prows.length ? mk(prows, 'po')
+    : `<div class="empty-note" style="grid-column:1/-1">${qp ? '검색 결과가 없습니다.' : '등록된 포지션이 없습니다.'}</div>`;
+  $('#cCount').textContent = qc ? trows.length + ' / ' + S.traits.length : S.traits.length;
+  $('#poCount').textContent = qp ? prows.length + ' / ' + S.positions.length : S.positions.length;
 }
 
 function openCpoModal(kind, row = null){
@@ -786,8 +825,15 @@ $('#btnAddPo').addEventListener('click', () => openCpoModal('po'));
    친구 관리 페이지
 ===================================================== */
 function renderPeList(){
-  $('#peCount').textContent = S.friends.length;
-  $('#peList').innerHTML = S.friends.length ? S.friends.map(p => `
+  const q = $('#peSearch').value.trim().toLowerCase();
+  const rows = q ? S.friends.filter(p =>
+    p.pe_name.toLowerCase().includes(q) ||
+    (p.pe_content || '').toLowerCase().includes(q) ||
+    p.cs.some(c => c.c_name.toLowerCase().includes(q)) ||
+    p.pos.some(o => o.po_name.toLowerCase().includes(q))
+  ) : S.friends;
+  $('#peCount').textContent = q ? rows.length + ' / ' + S.friends.length : S.friends.length;
+  $('#peList').innerHTML = rows.length ? rows.map(p => `
     <div class="item-card">
       <div class="top">
         <h3 style="display:flex;align-items:center;gap:8px">
@@ -805,8 +851,11 @@ function renderPeList(){
         ${p.pos.map(o => `<span class="chip po-chip" onclick="openChip('po','${o.id}')"><span class="dot"></span>${esc(o.po_name)}</span>`).join('')}
       </div>
     </div>`).join('')
-    : '<div class="empty-note" style="grid-column:1/-1">등록된 친구가 없습니다.</div>';
+    : `<div class="empty-note" style="grid-column:1/-1">${q ? '검색 결과가 없습니다.' : '등록된 친구가 없습니다.'}</div>`;
 }
+$('#peSearch').addEventListener('input', renderPeList);
+$('#cSearch').addEventListener('input', renderCpoLists);
+$('#poSearch').addEventListener('input', renderCpoLists);
 
 function renderColorRow(){
   $('#peColors').innerHTML = COLORS.map(c =>
@@ -816,18 +865,22 @@ function renderColorRow(){
   }));
 }
 function renderPickers(){
-  $('#pickC').innerHTML = S.traits.length ? S.traits.map(c => `
+  const qc = $('#pickCSearch').value.trim().toLowerCase();
+  const qp = $('#pickPoSearch').value.trim().toLowerCase();
+  const tr = qc ? S.traits.filter(c => c.c_name.toLowerCase().includes(qc)) : S.traits;
+  const ps = qp ? S.positions.filter(o => o.po_name.toLowerCase().includes(qp)) : S.positions;
+  $('#pickC').innerHTML = tr.length ? tr.map(c => `
     <label class="pick-row">
       <input type="checkbox" data-id="${c.id}" data-kind="c" ${S.pickedC.has(c.id) ? 'checked' : ''}>
       <b>${esc(c.c_name)}</b>
     </label>`).join('')
-    : '<div style="padding:10px;color:var(--muted);font-size:12.5px">아직 특성이 없습니다. 아래에서 바로 만들 수 있어요.</div>';
-  $('#pickPo').innerHTML = S.positions.length ? S.positions.map(o => `
+    : `<div style="padding:10px;color:var(--muted);font-size:12.5px">${qc ? '검색 결과 없음' : '아직 특성이 없습니다. 아래에서 바로 만들 수 있어요.'}</div>`;
+  $('#pickPo').innerHTML = ps.length ? ps.map(o => `
     <label class="pick-row">
       <input type="checkbox" data-id="${o.id}" data-kind="po" ${S.pickedPo.has(o.id) ? 'checked' : ''}>
       <b>${esc(o.po_name)}</b>
     </label>`).join('')
-    : '<div style="padding:10px;color:var(--muted);font-size:12.5px">아직 포지션이 없습니다. 아래에서 바로 만들 수 있어요.</div>';
+    : `<div style="padding:10px;color:var(--muted);font-size:12.5px">${qp ? '검색 결과 없음' : '아직 포지션이 없습니다. 아래에서 바로 만들 수 있어요.'}</div>`;
   document.querySelectorAll('.pick-row input').forEach(ch => ch.addEventListener('change', () => {
     const set = ch.dataset.kind === 'c' ? S.pickedC : S.pickedPo;
     ch.checked ? set.add(ch.dataset.id) : set.delete(ch.dataset.id);
@@ -844,6 +897,8 @@ function openPeModal(p = null){
   $('#peTier').value = p ? Number(p.tier).toFixed(1) : '2.5';
   $('#peContent').value = p?.pe_content || '';
   $('#peTxt').value = p?.pe_txt || '';
+  $('#pickCSearch').value = '';
+  $('#pickPoSearch').value = '';
   renderColorRow();
   renderPickers();
   openOv('ovPe');
@@ -879,6 +934,8 @@ async function inlineCreate(kind){
   renderPickers();
   toast('생성 + 자동 선택됨');
 }
+$('#pickCSearch').addEventListener('input', renderPickers);
+$('#pickPoSearch').addEventListener('input', renderPickers);
 $('#newCAdd').addEventListener('click', () => inlineCreate('c'));
 $('#newPoAdd').addEventListener('click', () => inlineCreate('po'));
 
