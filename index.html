@@ -81,9 +81,10 @@ nav{display:flex;gap:4px;margin-left:8px}
 .board-wrap{padding:18px 22px 30px;max-width:1500px;margin:0 auto}
 .board-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
 .board-toolbar .hint{font-size:12px;color:var(--muted)}
-#board-scroll{overflow-x:auto;border-radius:14px;border:1px solid var(--line);background:var(--bg2)}
+#board-scroll{overflow:hidden;position:relative;border-radius:14px;border:1px solid var(--line);background:var(--bg2);-webkit-overflow-scrolling:touch}
+#board-sizer{overflow:hidden;position:relative}
 #board{
-  position:relative;min-width:860px;height:740px;
+  position:relative;width:1200px;height:740px;transform-origin:0 0;
   background:
     repeating-linear-gradient(to bottom, transparent 0, transparent 117px, #ffffff07 117px, #ffffff07 234px);
   user-select:none;touch-action:none;
@@ -103,6 +104,7 @@ nav{display:flex;gap:4px;margin-left:8px}
 .ruler-label small{display:block;font-size:9px;letter-spacing:.18em;font-weight:600;opacity:.55;margin-top:-2px}
 .ruler-tick{position:absolute;right:0;width:10px;height:1px;background:#3a4158}
 .fcard{
+  touch-action:none;-webkit-user-select:none;
   position:absolute;z-index:5;
   width:148px;padding:9px 11px 9px 13px;
   background:var(--panel);border:1px solid var(--line);border-radius:10px;
@@ -234,6 +236,15 @@ nav{display:flex;gap:4px;margin-left:8px}
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 #toast.err{border-color:var(--danger);color:#ffc2c2}
 
+@media (pointer:coarse){
+  .icon-btn{width:36px;height:36px;font-size:15px}
+  .btn{padding:11px 17px;font-size:13.5px}
+  .btn.sm{padding:9px 13px}
+  .chip{padding:7px 13px;font-size:12.5px}
+  .pick-row{padding:11px 10px}
+  .field input[type=text],.field input[type=number],.field textarea,.inline-new input{font-size:16px}
+  .color-sw{width:32px;height:32px}
+}
 @media(max-width:700px){
   header{padding:0 12px;gap:8px;overflow-x:auto}
   .tab-page,.board-wrap{padding:14px 12px 26px}
@@ -269,7 +280,7 @@ nav{display:flex;gap:4px;margin-left:8px}
       <span class="hint">카드를 드래그해서 티어 조정 · 소수점(0.1 단위) 가능 · 카드 클릭 시 상세보기</span>
     </div>
     <div id="board-scroll">
-      <div id="board"></div>
+      <div id="board-sizer"><div id="board"></div></div>
     </div>
   </div>
 </section>
@@ -533,6 +544,26 @@ sb.channel('friend_tier_rt')
    TIER BOARD
 ===================================================== */
 const PAD_TOP = 26, PAD_BOTTOM = 26, RULER_W = 64, CARD_W = 148, CARD_H = 56;
+const BOARD_W = 1200, BOARD_H = 740, MIN_SCALE = 0.5;
+let SCALE = 1;
+function fitBoard(){
+  const wrap = document.getElementById('board-scroll');
+  const board = boardEl();
+  if(!wrap.clientWidth) return;
+  SCALE = wrap.clientWidth / BOARD_W;
+  if(SCALE < MIN_SCALE){           // 너무 좁으면 최소 배율 + 가로 스크롤
+    SCALE = MIN_SCALE;
+    wrap.style.overflowX = 'auto';
+  }else{
+    SCALE = Math.min(SCALE, 1.4);  // 큰 태블릿/모니터는 살짝 확대까지 허용
+    wrap.style.overflowX = 'hidden';
+  }
+  board.style.transform = `scale(${SCALE})`;
+  const sizer = document.getElementById('board-sizer');
+  sizer.style.width = (BOARD_W * SCALE) + 'px';
+  sizer.style.height = (BOARD_H * SCALE) + 'px';
+  wrap.style.height = (BOARD_H * SCALE) + 'px';
+}
 function boardEl(){ return $('#board'); }
 function usableH(){ return boardEl().clientHeight - PAD_TOP - PAD_BOTTOM - CARD_H; }
 function tierToY(t){ return PAD_TOP + (5 - t) / 5 * usableH(); }
@@ -543,6 +574,7 @@ function yToTier(y){
 }
 
 function renderBoard(){
+  fitBoard();
   const board = boardEl();
   board.innerHTML = '';
 
@@ -613,8 +645,8 @@ function attachDrag(card, p){
     moved = false;
 
     const onMove = ev => {
-      const dx = ev.clientX - startX, dy = ev.clientY - startY;
-      if(!moved && Math.hypot(dx, dy) < 5) return;
+      const dx = (ev.clientX - startX) / SCALE, dy = (ev.clientY - startY) / SCALE;
+      if(!moved && Math.hypot(dx * SCALE, dy * SCALE) < 5) return;
       if(!moved){
         moved = true;
         card.classList.add('dragging');
@@ -787,13 +819,13 @@ function renderPickers(){
   $('#pickC').innerHTML = S.traits.length ? S.traits.map(c => `
     <label class="pick-row">
       <input type="checkbox" data-id="${c.id}" data-kind="c" ${S.pickedC.has(c.id) ? 'checked' : ''}>
-      <b>${esc(c.c_name)}</b><span class="sub">${esc(c.c_content)}</span>
+      <b>${esc(c.c_name)}</b>
     </label>`).join('')
     : '<div style="padding:10px;color:var(--muted);font-size:12.5px">아직 특성이 없습니다. 아래에서 바로 만들 수 있어요.</div>';
   $('#pickPo').innerHTML = S.positions.length ? S.positions.map(o => `
     <label class="pick-row">
       <input type="checkbox" data-id="${o.id}" data-kind="po" ${S.pickedPo.has(o.id) ? 'checked' : ''}>
-      <b>${esc(o.po_name)}</b><span class="sub">${esc(o.po_content)}</span>
+      <b>${esc(o.po_name)}</b>
     </label>`).join('')
     : '<div style="padding:10px;color:var(--muted);font-size:12.5px">아직 포지션이 없습니다. 아래에서 바로 만들 수 있어요.</div>';
   document.querySelectorAll('.pick-row input').forEach(ch => ch.addEventListener('change', () => {
