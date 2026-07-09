@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>추진체 선택 모델 · 가중합 트레이드 스터디</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0c1524;
+    --bg-deep: #070d17;
+    --panel: #121d30;
+    --panel-2: #0f1828;
+    --line: #24354f;
+    --line-soft: #1a2740;
+    --text: #dbe4f2;
+    --muted: #7286a3;
+    --amber: #ffb020;
+    --amber-dim: #a8781f;
+    --cyan: #57c7e8;
+    --green: #3fd193;
+    --red: #ff6b5e;
+    --solid: #7fb0ff;
+    --liquid: #57c7e8;
+    --hybrid: #3fd193;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 700px at 15% -10%, #12213a 0%, transparent 60%),
+      radial-gradient(900px 600px at 110% 10%, #10233020 0%, transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    padding:0 0 80px 0;
+  }
+  /* blueprint grid overlay */
+  .grid-overlay{
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(var(--line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    background-size: 42px 42px;
+    opacity:0.35;
+    mask-image: radial-gradient(circle at 50% 0%, black, transparent 85%);
+  }
+  .wrap{ position:relative; z-index:1; max-width:1180px; margin:0 auto; padding: 0 24px; }
+
+  header{
+    padding: 56px 0 34px 0;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 40px;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:0.14em;
+    color: var(--amber);
+    text-transform:uppercase;
+    display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:7px; height:7px;
+    background:var(--amber);
+    display:inline-block;
+    box-shadow:0 0 8px var(--amber);
+    animation: blink 1.6s ease-in-out infinite;
+  }
+  @keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:.25;} }
+  h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size: clamp(28px, 4vw, 44px);
+    line-height:1.15;
+    margin: 14px 0 12px 0;
+    letter-spacing:-0.01em;
+  }
+  h1 span{ color:var(--amber); }
+  .lede{
+    color:var(--muted);
+    font-size:15.5px;
+    line-height:1.7;
+    max-width: 720px;
+  }
+  code, .mono{ font-family:'JetBrains Mono', monospace; }
+
+  .layout{
+    display:grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 22px;
+    align-items:start;
+  }
+  @media (max-width: 920px){ .layout{ grid-template-columns: 1fr; } }
+
+  .panel{
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--line);
+    border-radius: 10px;
+    position:relative;
+    overflow:hidden;
+  }
+  .panel::before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:1px;
+    background:linear-gradient(90deg, transparent, var(--amber-dim), transparent);
+  }
+  .panel-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 16px 20px;
+    border-bottom:1px solid var(--line);
+  }
+  .panel-title{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:15px;
+    display:flex; align-items:center; gap:9px;
+  }
+  .tag{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10.5px;
+    color:var(--bg-deep);
+    background:var(--amber);
+    padding:2px 7px;
+    border-radius:4px;
+    font-weight:700;
+    letter-spacing:0.03em;
+  }
+  .panel-body{ padding: 20px; }
+
+  /* mission selector */
+  .missions{ display:grid; grid-template-columns: repeat(5,1fr); gap:8px; margin-bottom:22px; }
+  @media (max-width: 640px){ .missions{ grid-template-columns: repeat(2,1fr); } }
+  .mission-btn{
+    background: var(--bg-deep);
+    border:1px solid var(--line);
+    color: var(--muted);
+    padding:10px 8px;
+    border-radius:8px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+    text-align:center;
+    cursor:pointer;
+    transition: all .15s ease;
+    line-height:1.35;
+  }
+  .mission-btn:hover{ border-color: var(--amber-dim); color:var(--text); }
+  .mission-btn.active{
+    border-color: var(--amber);
+    color: var(--amber);
+    background: #1c1408;
+    box-shadow: 0 0 0 1px var(--amber) inset;
+  }
+
+  .crit-row{
+    display:grid;
+    grid-template-columns: 88px 1fr 46px;
+    align-items:center;
+    gap:12px;
+    padding:9px 0;
+    border-bottom:1px dashed var(--line-soft);
+  }
+  .crit-row:last-of-type{ border-bottom:none; }
+  .crit-label{
+    font-size:12.5px;
+    color:var(--text);
+  }
+  .crit-label .sub{ display:block; font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+  .crit-val{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.5px;
+    color:var(--amber);
+    text-align:right;
+  }
+  input[type=range]{
+    -webkit-appearance:none;
+    appearance:none;
+    width:100%;
+    height:4px;
+    border-radius:2px;
+    background: var(--line);
+    outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:15px; height:15px;
+    border-radius:50%;
+    background: var(--amber);
+    border:2px solid #1c1408;
+    cursor:pointer;
+    box-shadow: 0 0 6px rgba(255,176,32,0.6);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:15px; height:15px; border-radius:50%;
+    background: var(--amber); border:2px solid #1c1408; cursor:pointer;
+  }
+
+  .sum-line{
+    margin-top:14px;
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--muted);
+    padding-top:12px;
+    border-top:1px solid var(--line);
+  }
+  .sum-line b{ color:var(--text); }
+  .sum-ok{ color:var(--green) !important; }
+  .sum-bad{ color:var(--red) !important; }
+
+  /* terminal */
+  .terminal{
+    background: #060b13;
+    border-radius:8px;
+    padding:16px 18px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.3px;
+    line-height:1.75;
+    color: #ffcb6b;
+    height: 258px;
+    overflow-y:auto;
+    white-space:pre-wrap;
+    border:1px solid var(--line-soft);
+    position:relative;
+  }
+  .terminal .py-const{ color:#57c7e8; }
+  .terminal .py-name{ color:#3fd193; }
+  .terminal .py-win{ color:#ffb020; font-weight:700; }
+  .terminal::-webkit-scrollbar{ width:7px; }
+  .terminal::-webkit-scrollbar-thumb{ background:var(--line); border-radius:6px; }
+  .caret{ display:inline-block; width:7px; height:13px; background:#ffcb6b; vertical-align:-2px; animation: blink 1s step-start infinite; }
+
+  .status-row{
+    display:flex; align-items:center; gap:8px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px; color:var(--muted);
+    padding: 10px 20px;
+    border-top:1px solid var(--line);
+  }
+  .dot{ width:6px;height:6px;border-radius:50%; background:var(--muted); }
+  .dot.ready{ background:var(--green); box-shadow:0 0 6px var(--green); }
+  .dot.busy{ background:var(--amber); box-shadow:0 0 6px var(--amber); animation:blink .8s infinite; }
+
+  /* results */
+  .result-row{ margin-bottom: 16px; }
+  .result-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .result-name{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:14px; }
+  .result-score{ font-family:'JetBrains Mono', monospace; font-size:15px; font-weight:700; }
+  .bar-track{ background: var(--bg-deep); border:1px solid var(--line); border-radius:6px; height:14px; overflow:hidden; }
+  .bar-fill{ height:100%; border-radius:5px 0 0 5px; transition: width .5s cubic-bezier(.2,.8,.2,1); position:relative; }
+  .bar-fill::after{
+    content:""; position:absolute; inset:0;
+    background:repeating-linear-gradient(135deg, rgba(255,255,255,0.08) 0 6px, transparent 6px 12px);
+  }
+  .r-solid .bar-fill{ background: var(--solid); }
+  .r-liquid .bar-fill{ background: var(--liquid); }
+  .r-hybrid .bar-fill{ background: var(--hybrid); }
+  .r-solid .result-score{ color:var(--solid); }
+  .r-liquid .result-score{ color:var(--liquid); }
+  .r-hybrid .result-score{ color:var(--hybrid); }
+
+  .winner-banner{
+    margin-top: 6px;
+    border:1px solid var(--amber-dim);
+    background: linear-gradient(90deg, rgba(255,176,32,0.10), transparent);
+    border-radius:8px;
+    padding: 14px 16px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .winner-banner .icon{ font-size:22px; }
+  .winner-banner .txt{ font-size:13px; color:var(--muted); line-height:1.5; }
+  .winner-banner .txt b{ color:var(--amber); font-family:'Space Grotesk',sans-serif; font-size:15.5px; }
+
+  .table-wrap{ margin-top:26px; overflow-x:auto; }
+  table.score-table{
+    width:100%; border-collapse:collapse;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+  }
+  table.score-table th, table.score-table td{
+    border:1px solid var(--line);
+    padding:8px 10px;
+    text-align:center;
+  }
+  table.score-table th{
+    background: var(--bg-deep);
+    color:var(--muted);
+    font-weight:500;
+    font-size:11px;
+  }
+  table.score-table td:first-child, table.score-table th:first-child{
+    text-align:left; color:var(--text);
+  }
+  .col-solid{ color:var(--solid); }
+  .col-liquid{ color:var(--liquid); }
+  .col-hybrid{ color:var(--hybrid); }
+
+  footer.note{
+    margin-top:34px;
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.8;
+    border-top:1px solid var(--line);
+    padding-top:18px;
+  }
+  footer.note code{ color:var(--cyan); }
+</style>
+</head>
+<body>
+<div class="grid-overlay"></div>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">TRADE STUDY MODEL &nbsp;·&nbsp; WEIGHTED SUM (WSM)</div>
+    <h1>추진체 선택 모델<br><span>가중합 트레이드 스터디 계산기</span></h1>
+    <p class="lede">임무 목적에 따라 8개 평가 기준의 가중치를 조정하면, 브라우저에서 실제로 구동되는 Python(Pyodide) 엔진이 고체·액체·하이브리드 추진체의 점수를 실시간으로 계산합니다. 아래 결과는 <code class="mono">S = Σ Wᵢ × Pᵢ</code> 식을 그대로 실행한 것입니다.</p>
+  </header>
+
+  <div class="layout">
+
+    <!-- LEFT: controls -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span class="tag">INPUT</span> 임무 · 가중치 설정</div>
+      </div>
+      <div class="panel-body">
+        <div class="missions" id="missionButtons"></div>
+        <div id="criteriaList"></div>
+        <div class="sum-line">
+          <span>가중치 합계 (자동 정규화되어 계산에 반영됨)</span>
+          <span><b id="sumVal">1.00</b></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: python engine + results -->
+    <div style="display:flex; flex-direction:column; gap:22px;">
+
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title"><span class="tag">PYTHON</span> 실시간 연산 로그</div>
+        </div>
+        <div class="panel-body" style="padding-top:16px;">
+          <div class="terminal" id="terminal">Pyodide 런타임을 불러오는 중입니다<span class="caret"></span></div>
+        </div>
+        <div class="status-row">
+          <span class="dot" id="statusDot"></span>
+          <span id="statusText">초기화 중...</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title"><span class="tag">OUTPUT</span> 종합 점수</div>
+        </div>
+        <div class="panel-body" id="resultsBody">
+          <div class="result-row r-solid">
+            <div class="result-top"><span class="result-name">고체 추진체</span><span class="result-score" id="score-solid">–</span></div>
+            <div class="bar-track"><div class="bar-fill" id="bar-solid" style="width:0%"></div></div>
+          </div>
+          <div class="result-row r-liquid">
+            <div class="result-top"><span class="result-name">액체 추진체</span><span class="result-score" id="score-liquid">–</span></div>
+            <div class="bar-track"><div class="bar-fill" id="bar-liquid" style="width:0%"></div></div>
+          </div>
+          <div class="result-row r-hybrid">
+            <div class="result-top"><span class="result-name">하이브리드 추진체</span><span class="result-score" id="score-hybrid">–</span></div>
+            <div class="bar-track"><div class="bar-fill" id="bar-hybrid" style="width:0%"></div></div>
+          </div>
+          <div class="winner-banner">
+            <div class="icon">🚀</div>
+            <div class="txt">최적 추진체 &nbsp;<b id="winnerName">계산 대기 중</b><br>선택된 임무 조건에서 가장 높은 종합 점수를 얻은 추진 방식입니다.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="score-table">
+      <thead>
+        <tr>
+          <th>평가 기준</th>
+          <th class="col-solid">고체</th>
+          <th class="col-liquid">액체</th>
+          <th class="col-hybrid">하이브리드</th>
+        </tr>
+      </thead>
+      <tbody id="scoreTableBody"></tbody>
+    </table>
+  </div>
+
+  <footer class="note">
+    * 기준점수(1~5점)는 본 논문 Ⅲ장의 서술적 분석(추력 제어성, 재점화 가능성, 저장성, 즉응성, 추진 효율, 안전성, 경제성, 기술 성숙도)을 근거로 부여되었습니다.<br>
+    * 계산은 브라우저 내에서 실제로 실행되는 <code>Python 3 (Pyodide)</code> 런타임을 통해 수행되며, 슬라이더 값은 매 계산 시 합이 1.0이 되도록 자동 정규화됩니다.<br>
+    * 임무 버튼을 누르면 논문에 제시된 5개 시나리오(부스터/즉응, 정밀 궤도투입, 재사용 발사체, 교육·시험용, 심우주 탐사)의 가중치 벡터가 즉시 적용됩니다.
+  </footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+const CRITERIA = [
+  {id:"C1", name:"추력 제어성", sub:"thrust control"},
+  {id:"C2", name:"재점화 가능성", sub:"re-ignition"},
+  {id:"C3", name:"저장성", sub:"storability"},
+  {id:"C4", name:"즉응성", sub:"readiness time"},
+  {id:"C5", name:"추진 효율", sub:"specific impulse"},
+  {id:"C6", name:"안전성", sub:"safety"},
+  {id:"C7", name:"경제성", sub:"cost"},
+  {id:"C8", name:"기술 성숙도", sub:"maturity"},
+];
+
+const PERF = {
+  "고체":       [1,1,5,5,2,3,4,5],
+  "액체":       [5,5,2,2,5,2,2,5],
+  "하이브리드": [3,3,4,3,3,4,4,2],
+};
+
+const MISSIONS = [
+  { key:"booster", label:"부스터 /\n즉응 임무",   w:[0.05,0.05,0.25,0.25,0.10,0.10,0.15,0.05] },
+  { key:"orbit",   label:"정밀\n궤도투입",        w:[0.20,0.15,0.05,0.05,0.25,0.10,0.10,0.10] },
+  { key:"reuse",   label:"재사용\n발사체",        w:[0.25,0.25,0.05,0.05,0.15,0.10,0.10,0.05] },
+  { key:"edu",     label:"교육 ·\n시험용",         w:[0.05,0.05,0.15,0.05,0.05,0.30,0.30,0.05] },
+  { key:"deep",    label:"심우주\n탐사",          w:[0.15,0.20,0.05,0.05,0.35,0.05,0.05,0.10] },
+];
+
+let currentWeights = MISSIONS[0].w.slice();
+
+// ---------- build UI ----------
+const missionWrap = document.getElementById("missionButtons");
+MISSIONS.forEach((m, idx) => {
+  const btn = document.createElement("div");
+  btn.className = "mission-btn" + (idx===0 ? " active" : "");
+  btn.style.whiteSpace = "pre-line";
+  btn.textContent = m.label;
+  btn.onclick = () => {
+    document.querySelectorAll(".mission-btn").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    currentWeights = m.w.slice();
+    syncSliders();
+    runModel();
+  };
+  missionWrap.appendChild(btn);
+});
+
+const critList = document.getElementById("criteriaList");
+CRITERIA.forEach((c, i) => {
+  const row = document.createElement("div");
+  row.className = "crit-row";
+  row.innerHTML = `
+    <div class="crit-label">${c.id}<span class="sub">${c.name}</span></div>
+    <input type="range" min="0" max="50" step="1" id="slider-${i}">
+    <div class="crit-val" id="val-${i}">0%</div>
+  `;
+  critList.appendChild(row);
+});
+
+function syncSliders(){
+  CRITERIA.forEach((c,i)=>{
+    const pct = Math.round(currentWeights[i]*100);
+    document.getElementById(`slider-${i}`).value = pct;
+    document.getElementById(`val-${i}`).textContent = pct + "%";
+  });
+  updateSum();
+}
+
+function updateSum(){
+  let total = 0;
+  CRITERIA.forEach((c,i)=>{ total += Number(document.getElementById(`slider-${i}`).value); });
+  const sumEl = document.getElementById("sumVal");
+  sumEl.textContent = (total/100).toFixed(2);
+  sumEl.classList.toggle("sum-ok", Math.abs(total-100) < 1);
+  sumEl.classList.toggle("sum-bad", Math.abs(total-100) >= 1);
+  return total;
+}
+
+CRITERIA.forEach((c,i)=>{
+  document.getElementById(`slider-${i}`).addEventListener("input", (e)=>{
+    document.getElementById(`val-${i}`).textContent = e.target.value + "%";
+    document.querySelectorAll(".mission-btn").forEach(b=>b.classList.remove("active"));
+    updateSum();
+    runModel();
+  });
+});
+
+// score table
+const tbody = document.getElementById("scoreTableBody");
+CRITERIA.forEach((c,i)=>{
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td>${c.id} · ${c.name}</td>
+    <td class="col-solid">${PERF["고체"][i]}</td>
+    <td class="col-liquid">${PERF["액체"][i]}</td>
+    <td class="col-hybrid">${PERF["하이브리드"][i]}</td>`;
+  tbody.appendChild(tr);
+});
+
+// ---------- Pyodide engine ----------
+const termEl = document.getElementById("terminal");
+const statusDot = document.getElementById("statusDot");
+const statusText = document.getElementById("statusText");
+let pyodideReady = false;
+let pyodide = null;
+
+function termWrite(html){
+  termEl.innerHTML = html;
+  termEl.scrollTop = termEl.scrollHeight;
+}
+
+async function initPyodide(){
+  try{
+    pyodide = await loadPyodide();
+    await pyodide.runPythonAsync(`
+import json
+
+CRITERIA = ["C1","C2","C3","C4","C5","C6","C7","C8"]
+
+PERF = {
+    "고체":       [1,1,5,5,2,3,4,5],
+    "액체":       [5,5,2,2,5,2,2,5],
+    "하이브리드": [3,3,4,3,3,4,4,2],
+}
+
+def run_model(weights_json):
+    raw = json.loads(weights_json)
+    total = sum(raw)
+    w = [x/total for x in raw] if total > 0 else [1/len(raw)]*len(raw)
+
+    log = []
+    log.append(">>> import json")
+    log.append(">>> W_raw = " + str([round(x,3) for x in raw]))
+    log.append(">>> W = normalize(W_raw)   # Σ W = 1.0")
+    log.append("W = " + str([round(x,3) for x in w]))
+    log.append("")
+
+    results = {}
+    for name, p in PERF.items():
+        terms = [f"{wi:.2f}×{pi}" for wi, pi in zip(w, p)]
+        s = sum(wi*pi for wi, pi in zip(w, p))
+        results[name] = round(s, 3)
+        log.append(f">>> S({name}) = " + " + ".join(terms))
+        log.append(f"S({name}) = {s:.3f}")
+        log.append("")
+
+    winner = max(results, key=results.get)
+    log.append(f">>> max(results, key=results.get)")
+    log.append(f"'{winner}'   # S = {results[winner]:.3f}")
+
+    return json.dumps({
+        "trace": "\\n".join(log),
+        "results": results,
+        "winner": winner
+    })
+`);
+    pyodideReady = true;
+    statusDot.classList.add("ready");
+    statusText.textContent = "Python 3 (Pyodide) 준비 완료 — 브라우저 내 실행 중";
+    runModel();
+  } catch(err){
+    statusText.textContent = "Pyodide 로드 실패: " + err;
+  }
+}
+
+function colorizeTrace(trace){
+  return trace
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/(&gt;&gt;&gt;.*)/g, '<span class="py-const">$1</span>')
+    .replace(/(고체|액체|하이브리드)/g, '<span class="py-name">$1</span>');
+}
+
+async function runModel(){
+  if(!pyodideReady) return;
+  statusDot.classList.add("busy");
+  statusText.textContent = "계산 중...";
+
+  const total = updateSum();
+  const rawWeights = CRITERIA.map((c,i)=>Number(document.getElementById(`slider-${i}`).value)/100);
+
+  const runFn = pyodide.globals.get("run_model");
+  const outJson = runFn(JSON.stringify(rawWeights));
+  const out = JSON.parse(outJson);
+
+  termWrite(colorizeTrace(out.trace) + '<span class="caret"></span>');
+
+  const maxScore = 5;
+  const order = ["고체","액체","하이브리드"];
+  const idMap = {"고체":"solid","액체":"liquid","하이브리드":"hybrid"};
+  order.forEach(name=>{
+    const id = idMap[name];
+    const s = out.results[name];
+    document.getElementById(`score-${id}`).textContent = s.toFixed(3);
+    document.getElementById(`bar-${id}`).style.width = Math.min(100, (s/maxScore)*100) + "%";
+  });
+  document.getElementById("winnerName").textContent =
+    `${out.winner} 추진체  (S = ${out.results[out.winner].toFixed(3)})`;
+
+  statusDot.classList.remove("busy");
+  statusText.textContent = "Python 3 (Pyodide) 준비 완료 — 브라우저 내 실행 중";
+}
+
+syncSliders();
+initPyodide();
+</script>
+</body>
+</html>
